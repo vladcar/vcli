@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"log"
+	"os"
 )
 
 var cfgFile string
@@ -22,7 +25,11 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "/Users/vladc/vcli.yaml", "config file (default is $HOME/vcli.yaml)")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", fmt.Sprintf("%v/vcli.yaml", homeDir), "config file (default is $HOME/vcli.yaml)")
 }
 
 // initConfig reads in config file and ENV variables if set.
