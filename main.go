@@ -1,6 +1,6 @@
 package main
 
-import "vcli/cmd"
+import "github.com/vladcar/vcli/cmd"
 
 func main() {
 	cmd.Execute()
