@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
 	"github.com/fatih/color"
@@ -81,16 +83,19 @@ func TakeRole(c context.Context, api STSAssumeRoleAPI, input *sts.AssumeRoleInpu
 }
 
 func assumeRole(roleArn string, profile string) error {
-	printCyan("assuming role...")
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithSharedConfigProfile(profile))
+	sharedConfig, err := loadSharedAwsProfileConfig(profile)
 	if err != nil {
+		printRed("unable to load aws profile config")
 		return err
 	}
+	cfg, err := loadAwsConfig(sharedConfig)
+	if err != nil {
+		printRed("unable to initialize aws config")
+		return err
+	}
+	client := sts.NewFromConfig(cfg)
 
 	id, _ := nanoid.New()
-
-	client := sts.NewFromConfig(cfg)
 	input := &sts.AssumeRoleInput{
 		RoleArn:         &roleArn,
 		RoleSessionName: &id,
@@ -98,7 +103,7 @@ func assumeRole(roleArn string, profile string) error {
 
 	result, err := TakeRole(context.TODO(), client, input)
 	if err != nil {
-		printRed("Got an error assuming the role:")
+		printRed("error assuming the role:")
 		return err
 	}
 
@@ -107,13 +112,47 @@ func assumeRole(roleArn string, profile string) error {
 	if err != nil {
 		return err
 	}
+
 	dotFilePath := dirname + "/" + dotFile
 	printCyan("exporting AWS credentials to: ", dotFilePath)
+
 	if err := modifyShellProfile(*result.Credentials, dotFilePath); err != nil {
 		return err
 	}
 	printGreen("done")
+
 	return nil
+}
+
+func loadSharedAwsProfileConfig(profile string) (config.SharedConfig, error) {
+	return config.LoadSharedConfigProfile(context.TODO(), profile)
+}
+
+func loadAwsConfig(conf config.SharedConfig) (cfg aws.Config, err error) {
+	roleArn := conf.RoleARN
+	mfaSerial := conf.MFASerial
+
+	if strings.TrimSpace(roleArn) != "" && strings.TrimSpace(mfaSerial) != "" {
+		// assume role with mfa
+		return config.LoadDefaultConfig(context.TODO(),
+			config.WithSharedConfigProfile(profile),
+			config.WithAssumeRoleCredentialOptions(func(o *stscreds.AssumeRoleOptions) {
+				o.RoleARN = roleArn
+				o.SerialNumber = aws.String(mfaSerial)
+				o.TokenProvider = stscreds.StdinTokenProvider
+			}))
+	} else if strings.TrimSpace(roleArn) != "" {
+		// assume role without mfa
+		return config.LoadDefaultConfig(context.TODO(),
+			config.WithSharedConfigProfile(profile),
+			config.WithAssumeRoleCredentialOptions(func(o *stscreds.AssumeRoleOptions) {
+				o.RoleARN = roleArn
+			}))
+	} else {
+		// other aws credentials
+		return config.LoadDefaultConfig(context.TODO(),
+			config.WithSharedConfigProfile(profile))
+	}
 }
 
 func modifyShellProfile(credentials types.Credentials, dotFilePath string) error {
