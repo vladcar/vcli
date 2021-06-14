@@ -114,12 +114,16 @@ func assumeRole(roleArn string, profile string) error {
 	}
 
 	dotFilePath := dirname + "/" + dotFile
-	printCyan("exporting AWS credentials to: ", dotFilePath)
+	printCyan("exporting temporary AWS credentials to: ", dotFilePath)
 
 	if err := modifyShellProfile(*result.Credentials, dotFilePath); err != nil {
 		return err
 	}
 	printGreen("done")
+	printGreen("To get started with using AWS you may need to restart your current shell.\n" +
+		"This would reload your environment to include latest temporary AWS credentials.\n")
+	printGreen(fmt.Sprintf("To configure your current shell, run:\n"+
+		"source $HOME/%v", dotFile))
 
 	return nil
 }
