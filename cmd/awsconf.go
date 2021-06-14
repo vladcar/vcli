@@ -38,7 +38,7 @@ var dotFile string
 
 var awsconfCmd = &cobra.Command{
 	Use:   "awsconf",
-	Short: "Assume IAM role using SSO credentials. Prior SSO login required",
+	Short: "Assume IAM role using SSO credentials and export temporary credentials to your shell dotfile e.g. .zshenv. Prior SSO login required",
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := viper.ReadInConfig(); err == nil {
 			roleArn := viper.GetString(fmt.Sprintf("aws.%v.roleArn", profile))
