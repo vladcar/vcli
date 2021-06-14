@@ -50,7 +50,7 @@ aws:
 aws sso login --profile my-profile
 ...<complete sso login>...
 
-vcli awsconf --profile sm-dev --region eu-central-1
+vcli awsconf --profile my-profile --region eu-central-1
 ```
 Output should be like this
 ```shell
